@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}이름 선택 - 강정훈 연구 사이트{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <p class="auth-title">이름을 선택해주세요</p>
+    <p class="auth-sub">선택 후에는 별도 비밀번호 없이 자동으로 접속됩니다.</p>
+    <form method="post" class="name-grid">
+      {% for n in nurses %}
+      <button type="submit" name="name" value="{{ n }}" class="name-btn">{{ n }}</button>
+      {% endfor %}
+    </form>
+  </div>
+</div>
+{% endblock %}

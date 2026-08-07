@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}강정훈 연구 사이트{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% if current_user %}
+<header class="topbar">
+  <div class="brand">강정훈 연구 사이트</div>
+  <nav class="nav">
+    <a href="{{ url_for('home') }}" class="{{ 'active' if request.path == '/' else '' }}">홈</a>
+    <a href="{{ url_for('vacation') }}" class="{{ 'active' if request.path.startswith('/vacation') else '' }}">간호사 휴가신청 현황</a>
+    <a href="{{ url_for('minutes') }}" class="{{ 'active' if request.path.startswith('/minutes') else '' }}">회의록</a>
+    <a href="{{ url_for('board') }}" class="{{ 'active' if request.path.startswith('/board') else '' }}">자유게시판</a>
+    <a href="{{ url_for('issue_archive') }}" class="{{ 'active' if request.path.startswith('/issues/archive') else '' }} archive-link">해결된 이슈</a>
+  </nav>
+  <div class="user-box">
+    <span>{{ current_user }}님</span>
+    <a href="{{ url_for('switch_user') }}">사용자 전환</a>
+    <a href="{{ url_for('logout') }}">로그아웃</a>
+  </div>
+</header>
+{% endif %}
+<main class="page">
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flash">{{ messages[0] }}</div>
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}자유게시판 - 강정훈 연구 사이트{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="card-head">
+    <p class="card-title"><i class="icon">&#128172;</i>자유게시판</p>
+    <button type="button" class="ghost-btn" onclick="document.getElementById('post-form').classList.toggle('open')">+ 새 글쓰기</button>
+  </div>
+
+  <form id="post-form" method="post" action="{{ url_for('board_add') }}" class="inline-form">
+    <input type="text" name="title" placeholder="제목" required>
+    <textarea name="content" placeholder="내용을 입력하세요" required></textarea>
+    <button type="submit" class="primary small">등록</button>
+  </form>
+
+  {% if posts %}
+    {% for p in posts %}
+    <a class="row link-row" href="{{ url_for('board_detail', post_id=p.id) }}">
+      <p class="row-title">{{ p.title }}</p>
+      <p class="muted small-text">{{ p.author }} · {{ p.created_at[:10] }}</p>
+    </a>
+    {% endfor %}
+  {% else %}
+    <p class="empty">등록된 글이 없습니다.</p>
+  {% endif %}
+</section>
+{% endblock %}

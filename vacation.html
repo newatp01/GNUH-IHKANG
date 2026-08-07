@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}휴가신청 현황 - 강정훈 연구 사이트{% endblock %}
+{% block content %}
+
+<section class="card">
+  <div class="card-head">
+    <p class="card-title"><i class="icon">&#128197;</i>휴가 신청 현황</p>
+    <button type="button" class="ghost-btn" onclick="document.getElementById('vac-form').classList.toggle('open')">+ 휴가 등록</button>
+  </div>
+
+  <form id="vac-form" method="post" action="{{ url_for('vacation_add') }}" class="inline-form vac-form">
+    <select name="nurse_name" required>
+      <option value="">이름 선택</option>
+      {% for n in nurses %}
+      <option value="{{ n }}" {% if n == current_user %}selected{% endif %}>{{ n }}</option>
+      {% endfor %}
+    </select>
+    <label>시작일 <input type="date" name="start_date" required></label>
+    <label>종료일 <input type="date" name="end_date"></label>
+    <label class="half-check"><input type="checkbox" name="half_day"> 반차 (하루만 선택)</label>
+    <input type="text" name="memo" placeholder="메모 (선택)">
+    <button type="submit" class="primary small">등록</button>
+  </form>
+
+  <div class="cal-wrap">
+    {% for cal in [cal1, cal2] %}
+    <div class="cal-block">
+      <p class="cal-title">{{ cal.year }}년 {{ cal.month }}월 {% if loop.index == 1 %}(이번달){% else %}(다음달){% endif %}</p>
+      <div class="cal-grid cal-header">
+        <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+      </div>
+      {% for week in cal.weeks %}
+      <div class="cal-grid">
+        {% for d in week %}
+          {% if d == 0 %}
+            <div class="cal-cell empty-cell"></div>
+          {% else %}
+            <div class="cal-cell {% if cal.year == today[:4]|int and cal.month == today[5:7]|int and d == today[8:10]|int %}today-cell{% endif %}">
+              <span class="cal-date">{{ d }}</span>
+              {% for e in cal.days.get(d, []) %}
+              <div class="cal-badge c-{{ e.color }}">{{ e.name }}{% if e.half %}(반){% endif %}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="legend">
+    {% for n in nurses %}
+    <span><span class="dot c-{{ nurse_color(n) }}"></span>{{ n }}</span>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card">
+  <p class="card-title"><i class="icon">&#128202;</i>휴가 누적 현황</p>
+  {% for s in summary %}
+  <div class="row acc-row">
+    <div class="acc-left">
+      <div class="avatar c-{{ s.color }}">{{ s.name[:2] }}</div>
+      <p class="row-title">{{ s.name }}</p>
+    </div>
+    <div class="acc-right">
+      <p class="acc-total">{{ '%.1f'|format(s.total) }}일</p>
+      <p class="acc-detail">{{ s.detail }}</p>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+{% endblock %}
