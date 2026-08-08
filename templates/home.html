@@ -27,6 +27,26 @@
         </form>
       </div>
     </div>
+    <div class="project-files">
+      {% if project_files.get(p.id) %}
+      <div class="acc-entries">
+        {% for f in project_files[p.id] %}
+        <span class="acc-entry-chip">
+          <a href="{{ url_for('project_file_download', file_id=f.id) }}">&#128206; {{ f.original_filename }}</a>
+          <form method="post" action="{{ url_for('project_file_delete', file_id=f.id) }}" onsubmit="return confirm('이 파일을 삭제할까요?');" style="display:inline;">
+            <button type="submit" class="file-del-btn" title="파일 삭제">&times;</button>
+          </form>
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <button type="button" class="ghost-btn small-btn" onclick="document.getElementById('pf-form-{{ p.id }}').classList.toggle('open')">+ 파일 첨부</button>
+      <form id="pf-form-{{ p.id }}" method="post" action="{{ url_for('project_files_upload', project_id=p.id) }}" enctype="multipart/form-data" class="inline-form">
+        <input type="file" name="files" multiple required>
+        <button type="submit" class="primary small">업로드</button>
+        <p class="hint">PDF, 워드, 한글, 엑셀, 파워포인트, 이미지, zip 등 여러 파일을 한번에 올릴 수 있습니다.</p>
+      </form>
+    </div>
     {% endfor %}
   {% else %}
     <p class="empty">등록된 연구 과제가 없습니다.</p>
