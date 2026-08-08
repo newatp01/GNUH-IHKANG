@@ -315,3 +315,12 @@ a:hover { text-decoration: underline; }
   color: var(--text-muted); font-size: 15px; line-height: 1; padding: 0 0 0 4px;
 }
 .file-del-btn:hover { color: #a32d2d; }
+
+.cat-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 9px;
+  border-radius: var(--radius);
+  margin-left: 8px;
+}
