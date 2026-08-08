@@ -18,14 +18,20 @@
           · 해결 {{ i.resolved_at[:10] if i.resolved_at else '' }}
         </p>
       </div>
-      <form method="post" action="{{ url_for('issue_status', issue_id=i.id) }}" class="status-form">
-        <input type="hidden" name="back" value="{{ url_for('issue_archive') }}">
-        <select name="status" onchange="this.form.submit()" class="status-select status-resolved">
-          <option value="pending">해결전</option>
-          <option value="in_progress">해결중</option>
-          <option value="resolved" selected>해결됨</option>
-        </select>
-      </form>
+      <div class="row-actions">
+        <form method="post" action="{{ url_for('issue_status', issue_id=i.id) }}" class="status-form">
+          <input type="hidden" name="back" value="{{ url_for('issue_archive') }}">
+          <select name="status" onchange="this.form.submit()" class="status-select status-resolved">
+            <option value="pending">해결전</option>
+            <option value="in_progress">해결중</option>
+            <option value="resolved" selected>해결됨</option>
+          </select>
+        </form>
+        <form method="post" action="{{ url_for('issue_delete', issue_id=i.id) }}" onsubmit="return confirm('이 이슈를 삭제할까요? 되돌릴 수 없습니다.');">
+          <input type="hidden" name="back" value="{{ url_for('issue_archive') }}">
+          <button type="submit" class="ghost-btn danger-btn small-btn">삭제</button>
+        </form>
+      </div>
     </div>
     {% endfor %}
   {% else %}
