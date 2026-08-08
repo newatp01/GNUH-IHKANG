@@ -32,6 +32,14 @@ PROJECT_FILE_ALLOWED_EXT = {
 }  # 연구 과제 첨부파일
 NURSE_COLORS = ["blue", "coral", "green", "amber", "pink"]
 
+PROJECT_CATEGORIES = ["SIT", "IIT", "관찰&설문연구", "후향적 연구"]
+CATEGORY_COLORS = {
+    "SIT": "blue",
+    "IIT": "pink",
+    "관찰&설문연구": "green",
+    "후향적 연구": "amber",
+}
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "kjh-research-site-secret-key-2026")
 app.config["MAX_CONTENT_LENGTH"] = 30 * 1024 * 1024  # 30MB upload limit
@@ -59,6 +67,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             code TEXT,
+            category TEXT,
             status TEXT DEFAULT '진행중',
             created_at TEXT
         );
@@ -106,6 +115,10 @@ def init_db():
         );
         """
     )
+    # 기존에 만들어져 있던(운영 중인) DB에는 category 컬럼이 없을 수 있으므로 안전하게 추가한다.
+    cols = [row[1] for row in db.execute("PRAGMA table_info(projects)").fetchall()]
+    if "category" not in cols:
+        db.execute("ALTER TABLE projects ADD COLUMN category TEXT")
     db.commit()
     db.close()
 
@@ -197,7 +210,7 @@ def home():
     today = date.today().isoformat()
     return render_template(
         "home.html", projects=projects, issues=issues, project_files=project_files,
-        archive_count=archive_count, today=today
+        archive_count=archive_count, today=today, categories=PROJECT_CATEGORIES
     )
 
 
@@ -207,10 +220,13 @@ def project_add():
     db = get_db()
     name = request.form.get("name", "").strip()
     code = request.form.get("code", "").strip()
+    category = request.form.get("category", "").strip()
+    if category not in PROJECT_CATEGORIES:
+        category = None
     if name:
         db.execute(
-            "INSERT INTO projects (name, code, status, created_at) VALUES (?,?,?,?)",
-            (name, code, "진행중", datetime.now().isoformat()),
+            "INSERT INTO projects (name, code, category, status, created_at) VALUES (?,?,?,?,?)",
+            (name, code, category, "진행중", datetime.now().isoformat()),
         )
         db.commit()
     return redirect(url_for("home"))
@@ -622,6 +638,7 @@ def inject_globals():
         "nurse_color": lambda n: NURSE_COLORS[VACATION_NURSES.index(n) % len(NURSE_COLORS)] if n in VACATION_NURSES else "gray",
         "can_manage_vacation": session.get("user") in VACATION_MANAGERS,
         "is_admin": session.get("user") == "강정훈",
+        "category_color": lambda cat: CATEGORY_COLORS.get(cat, "gray"),
     }
 
 
