@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}홈 - 강정훈 연구 사이트{% endblock %}
+{% block content %}
+
+<section class="card">
+  <div class="card-head">
+    <p class="card-title"><i class="icon">&#128203;</i>연구 과제 목록</p>
+    <button type="button" class="ghost-btn" onclick="document.getElementById('project-form').classList.toggle('open')">+ 과제 추가</button>
+  </div>
+
+  <form id="project-form" method="post" action="{{ url_for('project_add') }}" class="inline-form">
+    <input type="text" name="name" placeholder="연구 과제명" required>
+    <input type="text" name="code" placeholder="과제 코드 (예: A-2026)">
+    <button type="submit" class="primary small">등록</button>
+  </form>
+
+  {% if projects %}
+    {% for p in projects %}
+    <div class="row">
+      <div>
+        <p class="row-title">{{ p.name }}{% if p.code %} <span class="muted">({{ p.code }})</span>{% endif %}</p>
+      </div>
+      <span class="badge success">{{ p.status }}</span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty">등록된 연구 과제가 없습니다.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <p class="card-title"><i class="icon">&#9888;</i>해결해야 할 이슈</p>
+    <button type="button" class="ghost-btn" onclick="document.getElementById('issue-form').classList.toggle('open')">+ 이슈 추가</button>
+  </div>
+
+  <form id="issue-form" method="post" action="{{ url_for('issue_add') }}" class="inline-form issue-form">
+    <select name="project_id">
+      <option value="">과제 선택 (선택사항)</option>
+      {% for p in projects %}
+      <option value="{{ p.id }}">{{ p.name }}</option>
+      {% endfor %}
+    </select>
+    <textarea name="content" placeholder="이슈 내용을 입력하세요" required></textarea>
+    <div class="issue-form-row">
+      <label class="due-label">해결 기한
+        <input type="date" name="due_date" min="{{ today }}">
+      </label>
+      <button type="submit" class="primary small">이슈 등록</button>
+    </div>
+    <p class="hint">등록하면 상태는 자동으로 '해결전'으로 설정됩니다.</p>
+  </form>
+
+  {% if issues %}
+    {% for i in issues %}
+    <div class="issue-row status-{{ i.status }}">
+      <div class="issue-main">
+        <p class="issue-content">{{ i.content }}</p>
+        <p class="muted small-text">
+          {% if i.project_name %}{{ i.project_name }} · {% endif %}
+          {{ i.author }} · {{ i.created_at[:10] }}
+          {% if i.due_date %} · 기한 {{ i.due_date }}{% endif %}
+        </p>
+      </div>
+      <form method="post" action="{{ url_for('issue_status', issue_id=i.id) }}" class="status-form">
+        <input type="hidden" name="back" value="{{ url_for('home') }}">
+        <select name="status" onchange="this.form.submit()" class="status-select status-{{ i.status }}">
+          <option value="pending" {% if i.status == 'pending' %}selected{% endif %}>해결전</option>
+          <option value="in_progress" {% if i.status == 'in_progress' %}selected{% endif %}>해결중</option>
+          <option value="resolved" {% if i.status == 'resolved' %}selected{% endif %}>해결됨</option>
+        </select>
+      </form>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty">등록된 이슈가 없습니다.</p>
+  {% endif %}
+
+  <p class="archive-hint">해결된 이슈는 목록에서 사라지며 상단 메뉴의 <a href="{{ url_for('issue_archive') }}">해결된 이슈</a>({{ archive_count }}건)에서 확인할 수 있습니다.</p>
+</section>
+
+{% endblock %}
