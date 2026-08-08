@@ -25,7 +25,11 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "0168")  # 강정훈(관리자
 NURSES = ["강정훈", "김하은", "이혜란"]  # 로그인 가능한 전체 인원
 VACATION_NURSES = ["김하은", "이혜란"]  # 휴가 현황에 집계되는 간호사 (강정훈은 조회만)
 VACATION_MANAGERS = {"김하은", "이혜란"}  # 휴가 등록/수정/취소는 이 두 사람만
-ALLOWED_EXT = {"pdf", "doc", "docx", "hwp", "hwpx"}
+ALLOWED_EXT = {"pdf", "doc", "docx", "hwp", "hwpx"}  # 회의록
+PROJECT_FILE_ALLOWED_EXT = {
+    "pdf", "doc", "docx", "hwp", "hwpx", "xls", "xlsx", "ppt", "pptx",
+    "png", "jpg", "jpeg", "zip", "txt", "csv",
+}  # 연구 과제 첨부파일
 NURSE_COLORS = ["blue", "coral", "green", "amber", "pink"]
 
 app = Flask(__name__)
@@ -75,6 +79,14 @@ def init_db():
             end_date TEXT NOT NULL,
             half_day INTEGER DEFAULT 0,
             memo TEXT,
+            created_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS project_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            filename TEXT NOT NULL,
+            original_filename TEXT,
+            uploader TEXT,
             created_at TEXT
         );
         CREATE TABLE IF NOT EXISTS minutes (
@@ -166,6 +178,13 @@ def logout():
 def home():
     db = get_db()
     projects = db.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
+    project_files = {}
+    for p in projects:
+        rows = db.execute(
+            "SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC",
+            (p["id"],),
+        ).fetchall()
+        project_files[p["id"]] = rows
     issues = db.execute(
         """SELECT issues.*, projects.name AS project_name, projects.code AS project_code
            FROM issues LEFT JOIN projects ON issues.project_id = projects.id
@@ -177,7 +196,7 @@ def home():
     ).fetchone()["c"]
     today = date.today().isoformat()
     return render_template(
-        "home.html", projects=projects, issues=issues,
+        "home.html", projects=projects, issues=issues, project_files=project_files,
         archive_count=archive_count, today=today
     )
 
@@ -203,8 +222,73 @@ def project_delete(project_id):
     db = get_db()
     # 과제를 지워도 거기 달려있던 이슈 자체는 남기고, 과제 태그만 떼어냅니다.
     db.execute("UPDATE issues SET project_id = NULL WHERE project_id = ?", (project_id,))
+    files = db.execute("SELECT * FROM project_files WHERE project_id = ?", (project_id,)).fetchall()
+    for pf in files:
+        try:
+            os.remove(os.path.join(UPLOAD_DIR, pf["filename"]))
+        except OSError:
+            pass
+    db.execute("DELETE FROM project_files WHERE project_id = ?", (project_id,))
     db.execute("DELETE FROM projects WHERE id = ?", (project_id,))
     db.commit()
+    return redirect(url_for("home"))
+
+
+@app.route("/project/<int:project_id>/files/upload", methods=["POST"])
+@login_required
+def project_files_upload(project_id):
+    db = get_db()
+    project = db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    if not project:
+        abort(404)
+    files = request.files.getlist("files")
+    saved = 0
+    for file in files:
+        if not file or file.filename == "":
+            continue
+        if not allowed_file(file.filename, PROJECT_FILE_ALLOWED_EXT):
+            continue
+        original = file.filename
+        safe = secure_filename(original)
+        stored = f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}_{safe}"
+        file.save(os.path.join(UPLOAD_DIR, stored))
+        db.execute(
+            """INSERT INTO project_files (project_id, filename, original_filename, uploader, created_at)
+               VALUES (?,?,?,?,?)""",
+            (project_id, stored, original, session.get("user"), datetime.now().isoformat()),
+        )
+        saved += 1
+    db.commit()
+    if saved == 0:
+        flash("업로드할 수 있는 파일이 없습니다. 허용된 형식인지 확인해주세요.")
+    return redirect(url_for("home"))
+
+
+@app.route("/project/files/<int:file_id>/download")
+@login_required
+def project_file_download(file_id):
+    db = get_db()
+    row = db.execute("SELECT * FROM project_files WHERE id = ?", (file_id,)).fetchone()
+    if not row:
+        abort(404)
+    return send_from_directory(
+        UPLOAD_DIR, row["filename"], as_attachment=True,
+        download_name=row["original_filename"],
+    )
+
+
+@app.route("/project/files/<int:file_id>/delete", methods=["POST"])
+@login_required
+def project_file_delete(file_id):
+    db = get_db()
+    row = db.execute("SELECT * FROM project_files WHERE id = ?", (file_id,)).fetchone()
+    if row:
+        try:
+            os.remove(os.path.join(UPLOAD_DIR, row["filename"]))
+        except OSError:
+            pass
+        db.execute("DELETE FROM project_files WHERE id = ?", (file_id,))
+        db.commit()
     return redirect(url_for("home"))
 
 
@@ -302,6 +386,8 @@ def vacation():
                 for r in rows:
                     sd = date.fromisoformat(r["start_date"])
                     ed = date.fromisoformat(r["end_date"])
+                    if ed < sd:  # 예전에 잘못 저장된(종료일<시작일) 기록도 화면에서는 항상 바로잡아 보여준다
+                        sd, ed = ed, sd
                     if sd <= cur <= ed:
                         entries.append({
                             "name": r["nurse_name"],
@@ -326,6 +412,8 @@ def vacation():
         for r in rows:
             sd = date.fromisoformat(r["start_date"])
             ed = date.fromisoformat(r["end_date"])
+            if ed < sd:  # 예전에 잘못 저장된(종료일<시작일) 기록도 화면에서는 항상 바로잡아 보여준다
+                sd, ed = ed, sd
             if r["half_day"]:
                 days_count = 0.5
                 label = f"{sd.month}/{sd.day}(반차)"
@@ -428,8 +516,9 @@ def vacation_reset_all():
     return redirect(url_for("vacation"))
 
 
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXT
+def allowed_file(filename, ext_set=None):
+    ext_set = ext_set or ALLOWED_EXT
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ext_set
 
 
 @app.route("/minutes")
