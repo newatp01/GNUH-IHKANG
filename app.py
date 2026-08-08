@@ -21,7 +21,10 @@ UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 SITE_PASSWORD = "dnfldusrn11"
-NURSES = ["강정훈", "문병선", "이우제", "김하은", "이혜란"]
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "0168")  # 강정훈(관리자) 로그인 비밀번호
+NURSES = ["강정훈", "김하은", "이혜란"]  # 로그인 가능한 전체 인원
+VACATION_NURSES = ["김하은", "이혜란"]  # 휴가 현황에 집계되는 간호사 (강정훈은 조회만)
+VACATION_MANAGERS = {"김하은", "이혜란"}  # 휴가 등록/수정/취소는 이 두 사람만
 ALLOWED_EXT = {"pdf", "doc", "docx", "hwp", "hwpx"}
 NURSE_COLORS = ["blue", "coral", "green", "amber", "pink"]
 
@@ -124,10 +127,26 @@ def select_name():
         return redirect(url_for("login"))
     if request.method == "POST":
         name = request.form.get("name")
+        if name == "강정훈":
+            return redirect(url_for("admin_login"))
         if name in NURSES:
             session["user"] = name
             return redirect(url_for("home"))
     return render_template("select_name.html", nurses=NURSES)
+
+
+@app.route("/admin-login", methods=["GET", "POST"])
+def admin_login():
+    if not session.get("site_auth"):
+        return redirect(url_for("login"))
+    error = None
+    if request.method == "POST":
+        pw = request.form.get("password", "")
+        if pw == ADMIN_PASSWORD:
+            session["user"] = "강정훈"
+            return redirect(url_for("home"))
+        error = "관리자 비밀번호가 올바르지 않습니다."
+    return render_template("admin_login.html", error=error)
 
 
 @app.route("/switch-user")
@@ -178,6 +197,17 @@ def project_add():
     return redirect(url_for("home"))
 
 
+@app.route("/project/<int:project_id>/delete", methods=["POST"])
+@login_required
+def project_delete(project_id):
+    db = get_db()
+    # 과제를 지워도 거기 달려있던 이슈 자체는 남기고, 과제 태그만 떼어냅니다.
+    db.execute("UPDATE issues SET project_id = NULL WHERE project_id = ?", (project_id,))
+    db.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+    db.commit()
+    return redirect(url_for("home"))
+
+
 @app.route("/issue/add", methods=["POST"])
 @login_required
 def issue_add():
@@ -210,6 +240,16 @@ def issue_status(issue_id):
     )
     db.commit()
     back = request.form.get("back") or url_for("home")
+    return redirect(back)
+
+
+@app.route("/issue/<int:issue_id>/delete", methods=["POST"])
+@login_required
+def issue_delete(issue_id):
+    db = get_db()
+    back = request.form.get("back") or url_for("home")
+    db.execute("DELETE FROM issues WHERE id = ?", (issue_id,))
+    db.commit()
     return redirect(back)
 
 
@@ -266,8 +306,8 @@ def vacation():
                         entries.append({
                             "name": r["nurse_name"],
                             "half": bool(r["half_day"]),
-                            "color": NURSE_COLORS[NURSES.index(r["nurse_name"]) % len(NURSE_COLORS)]
-                            if r["nurse_name"] in NURSES else "gray",
+                            "color": NURSE_COLORS[VACATION_NURSES.index(r["nurse_name"]) % len(NURSE_COLORS)]
+                            if r["nurse_name"] in VACATION_NURSES else "gray",
                         })
                 days[d] = entries
         return {"year": y, "month": m, "weeks": weeks, "days": days}
@@ -276,13 +316,13 @@ def vacation():
     cal2 = build_calendar(y2, m2)
 
     summary = []
-    for nurse in NURSES:
+    for nurse in VACATION_NURSES:
         rows = db.execute(
             "SELECT * FROM vacations WHERE nurse_name = ? ORDER BY start_date",
             (nurse,),
         ).fetchall()
         total = 0.0
-        entries_text = []
+        entries = []
         for r in rows:
             sd = date.fromisoformat(r["start_date"])
             ed = date.fromisoformat(r["end_date"])
@@ -293,38 +333,98 @@ def vacation():
                 days_count = (ed - sd).days + 1
                 label = f"{sd.month}/{sd.day}" if sd == ed else f"{sd.month}/{sd.day}~{ed.month}/{ed.day}"
             total += days_count
-            entries_text.append(label)
+            entries.append({"id": r["id"], "label": label})
         summary.append({
             "name": nurse,
             "total": round(total, 1),
-            "detail": ", ".join(entries_text) if entries_text else "기록 없음",
-            "color": NURSE_COLORS[NURSES.index(nurse) % len(NURSE_COLORS)],
+            "entries": entries,
+            "color": NURSE_COLORS[VACATION_NURSES.index(nurse) % len(NURSE_COLORS)],
         })
 
     return render_template(
         "vacation.html", cal1=cal1, cal2=cal2, summary=summary,
-        nurses=NURSES, today=today.isoformat(),
+        nurses=VACATION_NURSES, today=today.isoformat(),
+        can_manage_vacation=session.get("user") in VACATION_MANAGERS,
     )
+
+
+def _normalize_range(start_date, end_date, half_day):
+    """시작일/종료일을 date 객체로 바꾸고, 종료일이 시작일보다 빠르면
+    자동으로 순서를 바꿔서 항상 올바른(음수가 나오지 않는) 구간으로 만든다."""
+    sd = date.fromisoformat(start_date)
+    ed = date.fromisoformat(end_date) if end_date else sd
+    if half_day:
+        ed = sd
+    if ed < sd:
+        sd, ed = ed, sd
+    return sd, ed
 
 
 @app.route("/vacation/add", methods=["POST"])
 @login_required
 def vacation_add():
+    if session.get("user") not in VACATION_MANAGERS:
+        abort(403)
     db = get_db()
     nurse_name = request.form.get("nurse_name")
     start_date = request.form.get("start_date")
     end_date = request.form.get("end_date") or start_date
     half_day = 1 if request.form.get("half_day") == "on" else 0
     memo = request.form.get("memo", "").strip()
-    if half_day:
-        end_date = start_date
-    if nurse_name in NURSES and start_date:
+    if nurse_name in VACATION_NURSES and start_date:
+        sd, ed = _normalize_range(start_date, end_date, half_day)
         db.execute(
             """INSERT INTO vacations (nurse_name, start_date, end_date, half_day, memo, created_at)
                VALUES (?,?,?,?,?,?)""",
-            (nurse_name, start_date, end_date, half_day, memo, datetime.now().isoformat()),
+            (nurse_name, sd.isoformat(), ed.isoformat(), half_day, memo, datetime.now().isoformat()),
         )
         db.commit()
+    return redirect(url_for("vacation"))
+
+
+@app.route("/vacation/<int:vac_id>/edit", methods=["GET", "POST"])
+@login_required
+def vacation_edit(vac_id):
+    if session.get("user") not in VACATION_MANAGERS:
+        abort(403)
+    db = get_db()
+    row = db.execute("SELECT * FROM vacations WHERE id = ?", (vac_id,)).fetchone()
+    if not row:
+        abort(404)
+
+    if request.method == "POST":
+        if request.form.get("action") == "delete":
+            db.execute("DELETE FROM vacations WHERE id = ?", (vac_id,))
+            db.commit()
+            return redirect(url_for("vacation"))
+
+        nurse_name = request.form.get("nurse_name")
+        start_date = request.form.get("start_date")
+        end_date = request.form.get("end_date") or start_date
+        half_day = 1 if request.form.get("half_day") == "on" else 0
+        memo = request.form.get("memo", "").strip()
+        if nurse_name in VACATION_NURSES and start_date:
+            sd, ed = _normalize_range(start_date, end_date, half_day)
+            db.execute(
+                """UPDATE vacations SET nurse_name=?, start_date=?, end_date=?, half_day=?, memo=?
+                   WHERE id=?""",
+                (nurse_name, sd.isoformat(), ed.isoformat(), half_day, memo, vac_id),
+            )
+            db.commit()
+        return redirect(url_for("vacation"))
+
+    return render_template("vacation_edit.html", v=row, nurses=VACATION_NURSES)
+
+
+@app.route("/vacation/reset-all", methods=["POST"])
+@login_required
+def vacation_reset_all():
+    if session.get("user") != "강정훈":
+        abort(403)
+    db = get_db()
+    db.execute("DELETE FROM vacations")
+    db.commit()
+    flash("모든 간호사의 휴가 기록이 초기화되었습니다.")
     return redirect(url_for("vacation"))
 
 
@@ -378,6 +478,21 @@ def minutes_download(minute_id):
     )
 
 
+@app.route("/minutes/<int:minute_id>/delete", methods=["POST"])
+@login_required
+def minutes_delete(minute_id):
+    db = get_db()
+    row = db.execute("SELECT * FROM minutes WHERE id = ?", (minute_id,)).fetchone()
+    if row:
+        try:
+            os.remove(os.path.join(UPLOAD_DIR, row["filename"]))
+        except OSError:
+            pass
+        db.execute("DELETE FROM minutes WHERE id = ?", (minute_id,))
+        db.commit()
+    return redirect(url_for("minutes"))
+
+
 @app.route("/board")
 @login_required
 def board():
@@ -415,7 +530,9 @@ def board_detail(post_id):
 def inject_globals():
     return {
         "current_user": session.get("user"),
-        "nurse_color": lambda n: NURSE_COLORS[NURSES.index(n) % len(NURSE_COLORS)] if n in NURSES else "gray",
+        "nurse_color": lambda n: NURSE_COLORS[VACATION_NURSES.index(n) % len(NURSE_COLORS)] if n in VACATION_NURSES else "gray",
+        "can_manage_vacation": session.get("user") in VACATION_MANAGERS,
+        "is_admin": session.get("user") == "강정훈",
     }
 
 
