@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}홈 - 강정훈 교수 연구소 입장을 환영합니다 😊🔬{% endblock %}
+{% block title %}홈 - 강정훈 연구 사이트 입장 열렬환영 😁{% endblock %}
 {% block content %}
 
 <section class="card">
@@ -11,6 +11,12 @@
   <form id="project-form" method="post" action="{{ url_for('project_add') }}" class="inline-form">
     <input type="text" name="name" placeholder="연구 과제명" required>
     <input type="text" name="code" placeholder="과제 코드 (예: A-2026)">
+    <select name="category" required>
+      <option value="">분류 선택</option>
+      {% for cat in categories %}
+      <option value="{{ cat }}">{{ cat }}</option>
+      {% endfor %}
+    </select>
     <button type="submit" class="primary small">등록</button>
   </form>
 
@@ -19,6 +25,7 @@
     <div class="row">
       <div>
         <p class="row-title">{{ p.name }}{% if p.code %} <span class="muted">({{ p.code }})</span>{% endif %}</p>
+        {% if p.category %}<span class="cat-badge c-{{ category_color(p.category) }}">{{ p.category }}</span>{% endif %}
       </div>
       <div class="row-actions">
         <span class="badge success">{{ p.status }}</span>
