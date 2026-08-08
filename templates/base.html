@@ -18,7 +18,7 @@
     <a href="{{ url_for('issue_archive') }}" class="{{ 'active' if request.path.startswith('/issues/archive') else '' }} archive-link">해결된 이슈</a>
   </nav>
   <div class="user-box">
-    <span>{{ current_user }}님</span>
+    <span>{{ current_user }}님{% if is_admin %} (관리자){% endif %}</span>
     <a href="{{ url_for('switch_user') }}">사용자 전환</a>
     <a href="{{ url_for('logout') }}">로그아웃</a>
   </div>
@@ -32,5 +32,6 @@
   {% endwith %}
   {% block content %}{% endblock %}
 </main>
+<script src="{{ url_for('static', filename='datepicker.js') }}"></script>
 </body>
 </html>
