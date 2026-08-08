@@ -13,8 +13,8 @@
       <option value="{{ n }}" {% if n == v.nurse_name %}selected{% endif %}>{{ n }}</option>
       {% endfor %}
     </select>
-    <label>시작일 <input type="date" name="start_date" value="{{ v.start_date }}" required></label>
-    <label>종료일 <input type="date" name="end_date" value="{{ v.end_date }}"></label>
+    <label>시작일 <input type="text" class="big-date" data-datepicker name="start_date" value="{{ v.start_date }}" placeholder="YYYY-MM-DD" autocomplete="off" required></label>
+    <label>종료일 <input type="text" class="big-date" data-datepicker name="end_date" value="{{ v.end_date }}" placeholder="YYYY-MM-DD" autocomplete="off"></label>
     <label class="half-check"><input type="checkbox" name="half_day" {% if v.half_day %}checked{% endif %}> 반차 (하루만 선택)</label>
     <input type="text" name="memo" placeholder="메모 (선택)" value="{{ v.memo or '' }}">
     <button type="submit" class="primary small">변경사항 저장</button>
