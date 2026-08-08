@@ -5,9 +5,12 @@
 <section class="card">
   <div class="card-head">
     <p class="card-title"><i class="icon">&#128197;</i>휴가 신청 현황</p>
+    {% if can_manage_vacation %}
     <button type="button" class="ghost-btn" onclick="document.getElementById('vac-form').classList.toggle('open')">+ 휴가 등록</button>
+    {% endif %}
   </div>
 
+  {% if can_manage_vacation %}
   <form id="vac-form" method="post" action="{{ url_for('vacation_add') }}" class="inline-form vac-form">
     <select name="nurse_name" required>
       <option value="">이름 선택</option>
@@ -15,12 +18,15 @@
       <option value="{{ n }}" {% if n == current_user %}selected{% endif %}>{{ n }}</option>
       {% endfor %}
     </select>
-    <label>시작일 <input type="date" name="start_date" required></label>
-    <label>종료일 <input type="date" name="end_date"></label>
+    <label>시작일 <input type="text" class="big-date" data-datepicker name="start_date" placeholder="YYYY-MM-DD" autocomplete="off" required></label>
+    <label>종료일 <input type="text" class="big-date" data-datepicker name="end_date" placeholder="YYYY-MM-DD" autocomplete="off"></label>
     <label class="half-check"><input type="checkbox" name="half_day"> 반차 (하루만 선택)</label>
     <input type="text" name="memo" placeholder="메모 (선택)">
     <button type="submit" class="primary small">등록</button>
   </form>
+  {% else %}
+  <p class="hint">휴가 등록/수정은 김하은, 이혜란 님만 하실 수 있습니다.</p>
+  {% endif %}
 
   <div class="cal-wrap">
     {% for cal in [cal1, cal2] %}
@@ -57,7 +63,17 @@
 </section>
 
 <section class="card">
-  <p class="card-title"><i class="icon">&#128202;</i>휴가 누적 현황</p>
+  <div class="card-head">
+    <p class="card-title"><i class="icon">&#128202;</i>휴가 누적 현황</p>
+    {% if is_admin %}
+    <form method="post" action="{{ url_for('vacation_reset_all') }}" onsubmit="return confirm('정말로 모든 간호사의 휴가 기록을 전부 초기화할까요? 이 작업은 되돌릴 수 없습니다.');">
+      <button type="submit" class="ghost-btn danger-btn">전체 휴가 초기화</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if can_manage_vacation %}
+  <p class="hint">등록된 기간을 클릭하면 수정하거나 취소할 수 있습니다.</p>
+  {% endif %}
   {% for s in summary %}
   <div class="row acc-row">
     <div class="acc-left">
@@ -66,7 +82,19 @@
     </div>
     <div class="acc-right">
       <p class="acc-total">{{ '%.1f'|format(s.total) }}일</p>
-      <p class="acc-detail">{{ s.detail }}</p>
+      {% if s.entries %}
+      <div class="acc-entries">
+        {% for e in s.entries %}
+          {% if can_manage_vacation %}
+          <a class="acc-entry-chip" href="{{ url_for('vacation_edit', vac_id=e.id) }}">{{ e.label }} <span class="edit-mark">&#9998; 수정/취소</span></a>
+          {% else %}
+          <span class="acc-entry-chip static">{{ e.label }}</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="acc-detail">기록 없음</p>
+      {% endif %}
     </div>
   </div>
   {% endfor %}
