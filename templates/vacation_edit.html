@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}휴가 수정 - 강정훈 연구 사이트{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="card-head">
+    <p class="card-title"><i class="icon">&#9998;</i>휴가 변경 / 취소</p>
+    <a href="{{ url_for('vacation') }}" class="ghost-btn">목록으로</a>
+  </div>
+
+  <form method="post" class="inline-form open">
+    <select name="nurse_name" required>
+      {% for n in nurses %}
+      <option value="{{ n }}" {% if n == v.nurse_name %}selected{% endif %}>{{ n }}</option>
+      {% endfor %}
+    </select>
+    <label>시작일 <input type="date" name="start_date" value="{{ v.start_date }}" required></label>
+    <label>종료일 <input type="date" name="end_date" value="{{ v.end_date }}"></label>
+    <label class="half-check"><input type="checkbox" name="half_day" {% if v.half_day %}checked{% endif %}> 반차 (하루만 선택)</label>
+    <input type="text" name="memo" placeholder="메모 (선택)" value="{{ v.memo or '' }}">
+    <button type="submit" class="primary small">변경사항 저장</button>
+  </form>
+
+  <form method="post" onsubmit="return confirm('이 휴가 신청을 취소(삭제)할까요?');" style="margin-top:14px;">
+    <input type="hidden" name="action" value="delete">
+    <button type="submit" class="ghost-btn danger-btn">휴가 취소</button>
+  </form>
+</section>
+{% endblock %}
