@@ -21,11 +21,16 @@
         <p class="row-title">{{ m.title }}</p>
         <p class="muted small-text">{{ m.created_at[:10] }} · {{ m.uploader }} · {{ m.original_filename }}</p>
       </div>
-      <a href="{{ url_for('minutes_download', minute_id=m.id) }}" class="ghost-btn">다운로드</a>
+      <div class="row-actions">
+        <a href="{{ url_for('minutes_download', minute_id=m.id) }}" class="ghost-btn">다운로드</a>
+        <form method="post" action="{{ url_for('minutes_delete', minute_id=m.id) }}" onsubmit="return confirm('이 회의록 파일을 삭제할까요? 되돌릴 수 없습니다.');">
+          <button type="submit" class="ghost-btn danger-btn small-btn">삭제</button>
+        </form>
+      </div>
     </div>
     {% endfor %}
   {% else %}
-    <p class="empty">업로드된 회의록이 없습니다.</p>
+    <p class="empty">업로드된 회의록이 없네용^^.</p>
   {% endif %}
 </section>
 {% endblock %}
