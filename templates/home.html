@@ -20,7 +20,12 @@
       <div>
         <p class="row-title">{{ p.name }}{% if p.code %} <span class="muted">({{ p.code }})</span>{% endif %}</p>
       </div>
-      <span class="badge success">{{ p.status }}</span>
+      <div class="row-actions">
+        <span class="badge success">{{ p.status }}</span>
+        <form method="post" action="{{ url_for('project_delete', project_id=p.id) }}" onsubmit="return confirm('이 연구 과제를 삭제할까요? 연결된 이슈는 남고 과제 태그만 사라집니다.');">
+          <button type="submit" class="ghost-btn danger-btn small-btn">삭제</button>
+        </form>
+      </div>
     </div>
     {% endfor %}
   {% else %}
@@ -62,14 +67,20 @@
           {% if i.due_date %} · 기한 {{ i.due_date }}{% endif %}
         </p>
       </div>
-      <form method="post" action="{{ url_for('issue_status', issue_id=i.id) }}" class="status-form">
-        <input type="hidden" name="back" value="{{ url_for('home') }}">
-        <select name="status" onchange="this.form.submit()" class="status-select status-{{ i.status }}">
-          <option value="pending" {% if i.status == 'pending' %}selected{% endif %}>해결전</option>
-          <option value="in_progress" {% if i.status == 'in_progress' %}selected{% endif %}>해결중</option>
-          <option value="resolved" {% if i.status == 'resolved' %}selected{% endif %}>해결됨</option>
-        </select>
-      </form>
+      <div class="row-actions">
+        <form method="post" action="{{ url_for('issue_status', issue_id=i.id) }}" class="status-form">
+          <input type="hidden" name="back" value="{{ url_for('home') }}">
+          <select name="status" onchange="this.form.submit()" class="status-select status-{{ i.status }}">
+            <option value="pending" {% if i.status == 'pending' %}selected{% endif %}>해결전</option>
+            <option value="in_progress" {% if i.status == 'in_progress' %}selected{% endif %}>해결중</option>
+            <option value="resolved" {% if i.status == 'resolved' %}selected{% endif %}>해결됨</option>
+          </select>
+        </form>
+        <form method="post" action="{{ url_for('issue_delete', issue_id=i.id) }}" onsubmit="return confirm('이 이슈를 삭제할까요? 되돌릴 수 없습니다.');">
+          <input type="hidden" name="back" value="{{ url_for('home') }}">
+          <button type="submit" class="ghost-btn danger-btn small-btn">삭제</button>
+        </form>
+      </div>
     </div>
     {% endfor %}
   {% else %}
