@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}홈 - 강정훈 연구 사이트 입장 열렬환영 😁{% endblock %}
+{% block title %}홈 - 강정훈 연구 사이트{% endblock %}
 {% block content %}
 
 <section class="card">
@@ -29,6 +29,7 @@
       </div>
       <div class="row-actions">
         <span class="badge success">{{ p.status }}</span>
+        <a href="{{ url_for('project_edit', project_id=p.id) }}" class="ghost-btn small-btn">수정</a>
         <form method="post" action="{{ url_for('project_delete', project_id=p.id) }}" onsubmit="return confirm('이 연구 과제를 삭제할까요? 연결된 이슈는 남고 과제 태그만 사라집니다.');">
           <button type="submit" class="ghost-btn danger-btn small-btn">삭제</button>
         </form>
