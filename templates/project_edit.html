@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}과제 수정 - 강정훈 연구 사이트{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="card-head">
+    <p class="card-title"><i class="icon">&#9998;</i>연구 과제 수정</p>
+    <a href="{{ url_for('home') }}" class="ghost-btn">목록으로</a>
+  </div>
+
+  <form method="post" class="inline-form open">
+    <input type="text" name="name" placeholder="연구 과제명" value="{{ project.name }}" required>
+    <input type="text" name="code" placeholder="과제 코드 (예: A-2026)" value="{{ project.code or '' }}">
+    <select name="category" required>
+      <option value="">분류 선택</option>
+      {% for cat in categories %}
+      <option value="{{ cat }}" {% if cat == project.category %}selected{% endif %}>{{ cat }}</option>
+      {% endfor %}
+    </select>
+    <select name="status">
+      <option value="진행중" {% if project.status == '진행중' %}selected{% endif %}>진행중</option>
+      <option value="완료" {% if project.status == '완료' %}selected{% endif %}>완료</option>
+      <option value="보류" {% if project.status == '보류' %}selected{% endif %}>보류</option>
+    </select>
+    <button type="submit" class="primary small">변경사항 저장</button>
+  </form>
+</section>
+{% endblock %}
