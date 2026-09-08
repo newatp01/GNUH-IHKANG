@@ -22,9 +22,9 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 SITE_PASSWORD = "dnfldusrn11"
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "0168")  # 강정훈(관리자) 로그인 비밀번호
-NURSES = ["강정훈", "김하은", "이혜란"]  # 로그인 가능한 전체 인원
-VACATION_NURSES = ["김하은", "이혜란"]  # 휴가 현황에 집계되는 간호사 (강정훈은 조회만)
-VACATION_MANAGERS = {"김하은", "이혜란"}  # 휴가 등록/수정/취소는 이 두 사람만
+NURSES = ["강정훈", "김하은", "이혜란", "김백겸"]  # 로그인 가능한 전체 인원
+VACATION_NURSES = ["김하은", "이혜란", "김백겸"]  # 휴가 현황에 집계되는 간호사 (강정훈은 조회만)
+VACATION_MANAGERS = {"김하은", "이혜란", "김백겸"}  # 휴가 등록/수정/취소는 이 사람들만
 ALLOWED_EXT = {"pdf", "doc", "docx", "hwp", "hwpx"}  # 회의록
 PROJECT_FILE_ALLOWED_EXT = {
     "pdf", "doc", "docx", "hwp", "hwpx", "xls", "xlsx", "ppt", "pptx",
@@ -248,6 +248,32 @@ def project_delete(project_id):
     db.execute("DELETE FROM projects WHERE id = ?", (project_id,))
     db.commit()
     return redirect(url_for("home"))
+
+
+@app.route("/project/<int:project_id>/edit", methods=["GET", "POST"])
+@login_required
+def project_edit(project_id):
+    db = get_db()
+    project = db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    if not project:
+        abort(404)
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        code = request.form.get("code", "").strip()
+        category = request.form.get("category", "").strip()
+        status = request.form.get("status", "").strip() or project["status"]
+        if category not in PROJECT_CATEGORIES:
+            category = None
+        if name:
+            db.execute(
+                "UPDATE projects SET name=?, code=?, category=?, status=? WHERE id=?",
+                (name, code, category, status, project_id),
+            )
+            db.commit()
+        return redirect(url_for("home"))
+
+    return render_template("project_edit.html", project=project, categories=PROJECT_CATEGORIES)
 
 
 @app.route("/project/<int:project_id>/files/upload", methods=["POST"])
